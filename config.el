@@ -114,6 +114,8 @@
 
 (add-hook! ('LaTeX-mode-hook 'markdown-mode-hook) #'auto-fill-mode)
 
+(add-hook! cdlatex-mode (setq cdlatex-use-dollar-to-ensure-math t))
+
 (add-hook 'c++-mode-hook
           (lambda ()
             (setq flycheck-clang-language-standard "c++17")
@@ -159,11 +161,20 @@
 
 (after! flycheck
   ;; Fixes aforementioned bug in flycheck
-  (defun flycheck-rust-cargo-has-command-p (command)
+  (define-advice flycheck-rust-cargo-has-command-p
+      (:override (command) fix-untrimmed-cargo-list)
     (let ((cargo (funcall flycheck-executable-find "cargo")))
       (cl-some (lambda (x) (string-prefix-p command x))
                (mapcar #'string-trim-left
                        (ignore-errors (process-lines cargo "--list")))))))
+
+;; (after! flycheck
+;;   ;; Fixes aforementioned bug in flycheck
+;;   (defun flycheck-rust-cargo-has-command-p (command)
+;;     (let ((cargo (funcall flycheck-executable-find "cargo")))
+;;       (cl-some (lambda (x) (string-prefix-p command x))
+;;                (mapcar #'string-trim-left
+;;                        (ignore-errors (process-lines cargo "--list")))))))
 
 (after! lsp-mode
   (setq lsp-rust-analyzer-cargo-watch-command "clippy")
@@ -171,6 +182,7 @@
   (setq lsp-rust-analyzer-import-merge-behaviour "last")
   (setq lsp-rust-analyzer-import-granularity "module")
   (setq lsp-rust-analyzer-proc-macro-enable t)
+  (setq lsp-rust-analyzer-experimental-proc-attr-macros t)
   (require 'dap-gdb-lldb))
 
 (setq rustic-flycheck-clippy-params "--message-format=json")
@@ -181,7 +193,7 @@
                              (list :type "gdb"
                                    :request "launch"
                                    :name "GDB::Run"
-                           :gdbpath "rust-gdb"
+                                   :gdbpath "rust-gdb"
                                    :target nil
                                    :cwd nil))
   (dap-auto-configure-mode +1))
@@ -189,6 +201,7 @@
 ;; (add-hook! 'rustic-mode-hook #'rainbow-delimiters-mode-enable)
 
 (add-hook! 'LaTeX-mode-hook #'hl-todo-mode)
+(add-hook! 'LaTeX-mode-hook #'prettify-symbols-mode)
 
 ;; Set command-x to cut instead of to M-x
 (defun cut-region (beg end)
@@ -209,3 +222,9 @@
 
 ;; FIXME: flycheck-bidi-setup doesn't exist yet
 ;; (after! (flycheck flycheck-bidi) (flycheck-bidi-setup))
+
+;; LaTeX macro-folding should only run when TeX-fold-mode is active
+(define-advice +latex-fold-last-macro-a
+    (:around (oldfun &rest rest) fix-mode-active)
+  (when (bound-and-true-p TeX-fold-mode)
+    (apply oldfun rest)))

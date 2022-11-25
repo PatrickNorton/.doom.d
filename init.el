@@ -76,7 +76,7 @@
        ;;eshell            ; the elisp shell that works everywhere
        ;;shell             ; simple shell REPL for Emacs
        ;;term              ; basic terminal emulator for Emacs
-       ;;vterm             ; the best terminal emulation in Emacs
+       vterm             ; the best terminal emulation in Emacs
 
        :checkers
        syntax              ; tasing you for every semicolon you forget
@@ -85,6 +85,7 @@
 
        :tools
        ;;ansible
+       biblio            ; Writes a PhD for you (citation needed)
        (debugger +lsp)   ; FIXME stepping through code, to help you add bugs
        ;;direnv
        ;;docker
@@ -142,8 +143,8 @@
        ;;kotlin            ; a better, slicker Java(Script)
        (latex            ; writing papers in Emacs has never been so fun
         +latexmk         ; what else would you use?
-        +cdlatex         ; quick maths symbols
-        +fold)           ; fold the clutter away nicities
+        +cdlatex)        ; quick maths symbols
+       ;;  +fold)           ; fold the clutter away nicities
        ;;lean              ; for folks with too much to prove
        ;;ledger            ; an accounting system in Emacs
        ;;lua               ; one-based indices? one-based indices
