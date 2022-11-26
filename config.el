@@ -55,6 +55,7 @@
 
 (load! "local-pkgs/nlang-mode")
 (load! "local-pkgs/cppman")
+(load! "local-pkgs/mips")
 
 (defun delete-word ()
   (print "In delete-word")
