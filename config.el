@@ -179,23 +179,23 @@
 (after! lsp-mode
   (setq lsp-rust-analyzer-cargo-watch-command "clippy")
   (setq lsp-rust-clippy-preference "on")
-  (setq lsp-rust-analyzer-import-merge-behaviour "last")
   (setq lsp-rust-analyzer-import-granularity "module")
   (setq lsp-rust-analyzer-proc-macro-enable t)
   (setq lsp-rust-analyzer-experimental-proc-attr-macros t)
   (require 'dap-gdb-lldb))
 
-(setq rustic-flycheck-clippy-params "--message-format=json")
+;; (after! rustic-mode
+;;   (setq rustic-flycheck-clippy-params "--message-format=json"))
 
 (after! dap-mode
   (setq dap-default-terminal-kind "integrated")
   (dap-register-debug-template "Rust::GDB Run Configuration"
-                             (list :type "gdb"
-                                   :request "launch"
-                                   :name "GDB::Run"
-                                   :gdbpath "rust-gdb"
-                                   :target nil
-                                   :cwd nil))
+                               (list :type "gdb"
+                                     :request "launch"
+                                     :name "GDB::Run"
+                                     :gdbpath "rust-gdb"
+                                     :target nil
+                                     :cwd nil))
   (dap-auto-configure-mode +1))
 
 ;; (add-hook! 'rustic-mode-hook #'rainbow-delimiters-mode-enable)
