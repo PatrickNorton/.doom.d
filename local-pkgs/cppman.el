@@ -6,17 +6,26 @@
   (interactive "sName of symbol: ")
   (let ((executable (executable-find "cppman"))
         (bufname (concat "*Cppman " sym "*")))
+    (when (null executable)
+      (error "cppman executable not found"))
     (with-current-buffer-window bufname nil nil
       (poly-cppman-mode)
-      (call-process executable nil bufname nil sym)
-      (save-excursion
-        (goto-char (point-min))
-        (while (search-forward "\u2010" nil t)
-          (replace-match "-" nil t))
-        (goto-char (point-min))
-        (while (re-search-forward cppman-reference-regex nil t)
-          (make-button (match-beginning 0) (match-end 0)
-                       :type 'cppman-button))))))
+      (unwind-protect
+          (progn
+            (setf inhibit-read-only t)
+            (erase-buffer)
+            (call-process executable nil bufname nil sym)
+            ;; Replace Unicode dashes with standard hyphens
+            (save-excursion
+              (goto-char (point-min))
+              (while (search-forward "\u2010" nil t)
+                (replace-match "-" nil t))
+              ;; Add clickable buttons where relevant
+              (goto-char (point-min))
+              (while (re-search-forward cppman-reference-regex nil t)
+                (make-button (match-beginning 0) (match-end 0)
+                             :type 'cppman-button))))
+        (setf inhibit-read-only nil)))))
 
 (defconst cppman-reference-regex
   (rx (any alpha "_:+*-") (+ (any alpha "_:+~!*<>()=-" ?\u2010))
@@ -51,7 +60,7 @@
                 (string-trim (substring buffer-text 0 (match-beginning 0)))
               buffer-text))))
 
-(define-derived-mode cppman-mode text-mode "Cppman"
+(define-derived-mode cppman-mode special-mode "Cppman"
   "Major mode for cppman pages"
   (setq font-lock-defaults '((cppman-font-lock-keywords))))
 
