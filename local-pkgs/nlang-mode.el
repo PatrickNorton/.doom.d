@@ -217,7 +217,7 @@
           (- (point) (save-excursion (beginning-of-line) (point))))
          (end-brace-p
           (and (not (eolp))
-               (seq-contains '(?} ?\] ?\)) (char-after)))))
+               (seq-contains-p '(?} ?\] ?\)) (char-after)))))
      (save-excursion
        (forward-line -1)
        (back-to-indentation)
@@ -232,9 +232,9 @@
        (let* ((line-ends-with-open
                (save-excursion
                  (end-of-line)
-                 (seq-contains '(?\( ?\[ ?{) (char-before))))
+                 (seq-contains-p '(?\( ?\[ ?{) (char-before))))
               (line-starts-with-close
-               (seq-contains '(?\) ?\] ?}) (char-after)))
+               (seq-contains-p '(?\) ?\] ?}) (char-after)))
               (last-braces (nth 0 (syntax-ppss)))
               (last-indent
                (- (point) (save-excursion (beginning-of-line) (point))))
@@ -292,7 +292,6 @@
 (defun nlang-mode:font-lock-f-strings (limit)
   "Mark the area in between braces in f-strings as being code.
 Do this by removing the face property from the { ... } sections."
-  ;; FIXME: Don't highlight (or highlight separately) format tags (e.g. !r)
   (let ((ppss (syntax-ppss)))
     (while
         (progn
@@ -309,14 +308,18 @@ Do this by removing the face property from the { ... } sections."
                                  (forward-sexp 1))
                                (min limit (1- (point))))
                       (scan-error limit)))))
-        (while (re-search-forward "{" send t)
+        (while (search-forward "{" send t)
           (unless (nlang-mode:brace-is-escaped)
-            (let ((beg (match-beginning 0))
+            (let ((beg (point))
                   (end (condition-case nil
                            (progn (up-list 1) (min send (point)))
                          (scan-error send))))
               (goto-char end)
-              (put-text-property (1+ beg) (1- end) 'face nil))))
+              (put-text-property beg (1- end) 'face nil)
+              (when (search-backward "!" beg t)
+                (let ((bang-pos (point)))
+                  (unless (re-search-forward (rx (any "[]{}()\"'")) (1- end) t)
+                    (put-text-property bang-pos (1- end) 'face 'font-lock-keyword-face)))))))
         (goto-char (min limit (1+ send)))
         (setq ppss (syntax-ppss))))))
 
