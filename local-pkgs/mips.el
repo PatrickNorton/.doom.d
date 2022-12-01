@@ -36,7 +36,7 @@
   (funcall (assoc opcode mips-instruction-table) env args))
 
 (defun mips-todo (&rest args)
-  (error "Still not done" args))
+  (error "Still not done: %s" (apply #'format args)))
 
 (defun mips-assert-aligned (addr alignment)
   (unless (zerop (mod addr alignment))
@@ -157,7 +157,8 @@
         (let ((str (cl-loop for f in (nthcdr stack-index stack)
                             for zloc = (zero-byte f)
                             concat (trunc-zero f null-term)
-                            until zloc)))))))
+                            until zloc)))
+          str))))
 
 (cl-defmethod load-word ((obj mips-env) addr)
   (mips-assert-aligned addr mips-word-bytes)
@@ -177,7 +178,7 @@
    (t (mips-todo))))
 
 (cl-defmethod store-word ((obj mips-env) addr value)
-  (mips-assert-aligned (zerop (mod addr mips-word-bytes)))
+  (mips-assert-aligned addr mips-word-bytes)
   (cond
    ((mips-stackp addr)
     (let ((stack (slot-value obj 'stack))
@@ -423,7 +424,7 @@
   (set-reg env mips-ra (1+ (slot-value env 'ip)))
   (setf (slot-value env 'ip) (get-reg env (nth 0 args))))
 
-(defun mips-break (env args)
+(defun mips-break (_env _args)
   (mips--throw-terminate))
 
 (defun mips-mfhi (env args)
@@ -735,7 +736,7 @@
 (defun mips-skip-whitespace (remaining)
   (when (and remaining (eolp))
     (mips-parse-error "Unexpected end of line"))
-  (when (seq-contains " \t" (char-after))
+  (when (seq-contains-p " \t" (char-after))
     (forward-whitespace 1)
     (forward-comment 1)))
 
@@ -748,29 +749,28 @@
 (defun mips-parse-line ()
   (save-excursion
     (back-to-indentation)
-    (let ((start-pt (point)))
-      (if (or (eolp)
-              (eq ?. (char-after))
-              (eq ?# (char-after)))
-          (cons nil nil)
-        (if (looking-at mips-label-regex)
-            (cons nil (substring-no-properties (match-string 1)))
-          (let* ((instruction (mips-read-word))
-                 (syntax (alist-get instruction mips-instr-format 'not-found nil #'string=)))
-            (when (null instruction)
-              (mips-parse-error "Instruction not found on line %d" (line-number-at-pos)))
-            (when (eq syntax 'not-found)
-              (mips-parse-error "Instruction not found: %s (line %d)"
-                                instruction (line-number-at-pos)))
-            (mips-skip-whitespace syntax)
-            (cons
-             (cons (substring-no-properties instruction)
-                   (cl-loop for (reg . remaining) on syntax
-                            append (mips-parse-syntax reg)
-                            when (and remaining (eq ?, (char-after)))
-                            do (forward-char)
-                            do (mips-skip-whitespace remaining)))
-             nil)))))))
+    (if (or (eolp)
+            (eq ?. (char-after))
+            (eq ?# (char-after)))
+        (cons nil nil)
+      (if (looking-at mips-label-regex)
+          (cons nil (substring-no-properties (match-string 1)))
+        (let* ((instruction (mips-read-word))
+               (syntax (alist-get instruction mips-instr-format 'not-found nil #'string=)))
+          (when (null instruction)
+            (mips-parse-error "Instruction not found on line %d" (line-number-at-pos)))
+          (when (eq syntax 'not-found)
+            (mips-parse-error "Instruction not found: %s (line %d)"
+                              instruction (line-number-at-pos)))
+          (mips-skip-whitespace syntax)
+          (cons
+           (cons (substring-no-properties instruction)
+                 (cl-loop for (reg . remaining) on syntax
+                          append (mips-parse-syntax reg)
+                          when (and remaining (eq ?, (char-after)))
+                          do (forward-char)
+                          do (mips-skip-whitespace remaining)))
+           nil))))))
 
 (defun mips-read-int ()
   (let ((start (point)))
@@ -868,7 +868,7 @@ $ip    %35$s"
            (stack (append (make-vector stack-extra 0)
                           (slot-value env 'stack))))
       (cl-loop for (a b c d) on stack by #'cddddr
-               with stack-value = stack-start
+               with stack-value = initial-addr
                concat (format "%8x:    %08x  %08x  %08x  %08x\n"
                               stack-value a b c d)
                do (cl-incf stack-value 4)))))
@@ -967,7 +967,7 @@ Output:
        (cl-parse-integer (nth 0 values) :junk-allowed nil)))
     (t (nth 0 values))))
 
-(defun mips--help-file (args)
+(defun mips--help-file (_args)
   (mips-todo))
 
 (defun mips-continue ()
@@ -1068,27 +1068,32 @@ Output:
                       (prog1
                           (match-string 1)
                         (goto-char (match-end 0)))
-                    (mips-parse-error))))
+                    nil)))
       (mips-skip-whitespace t)
       (unless (looking-at (rx ?\. (* word)))
         (mips-parse-error))
       (goto-char (match-end 0))
-      (mips-skip-whitespace)
-      (pcase (match-string 0)
-        (".ascii" (mips--parse-string))
-        ((or ".asciz" ".string") (concat (mips--parse-string) "\0"))
-        (".byte" (apply #'vector
-                        (mapcar #'mips-wrap-ubyte
-                                (mips--read-int-list))))
-        (".word" (seq-mapcat
-                  #'mips-split-int (mips--read-int-list)
-                  :type 'vector))
-        (".space" (make-vector (mips-read-int) 0))
-        (".data" nil)
-        (t (mips-parse-error "Unknown data type %s" t))))))
+      (mips-skip-whitespace nil)
+      (cons label
+            (pcase (match-string 0)
+              (".ascii" (mips--parse-string))
+              ((or ".asciz" ".string") (concat (mips--parse-string) "\0"))
+              (".byte" (apply #'vector
+                              (mapcar #'mips-wrap-ubyte
+                                      (mips--read-int-list))))
+              (".word" (seq-mapcat
+                        #'mips-split-int (mips--read-int-list)
+                        'vector))
+              (".space" (make-vector (mips-read-int) 0))
+              (".data" nil)
+              (x (mips-parse-error "Unknown data type %s" x)))))))
 
 (defun mips--parse-string ()
-  (mips-todo))
+  (mips-forward-whitespace t)
+  (buffer-substring-no-properties
+   (point)
+   (or (nth 3 (syntax-ppss))
+       (mips-parse-error "Expected a string (line %s)" (line-number-at-pos)))))
 
 (defun mips-wrap-ubyte (byte)
   (logand byte #xff))
@@ -1096,10 +1101,10 @@ Output:
 (defun mips-split-int (int)
   (let ((wrapped (mips-wrap-unsigned int)))
     (list
-     (ash (logand #xff000000) 24)
-     (ash (logand #x00ff0000) 16)
-     (ash (logand #x0000ff00) 8)
-     (logand #x000000ff))))
+     (ash (logand #xff000000 wrapped) 24)
+     (ash (logand #x00ff0000 wrapped) 16)
+     (ash (logand #x0000ff00 wrapped) 8)
+     (logand #x000000ff wrapped))))
 
 (defun mips--read-int-list ()
   (cl-loop with eol = (cdr (bounds-of-thing-at-point 'line))
@@ -1107,7 +1112,7 @@ Output:
            collect (mips-read-int)
            while (= (char-after (point)) ?,)
            do (forward-char)
-           do (mips-skip-whitespace)))
+           do (mips-skip-whitespace nil)))
 
 (defun mips--find-text-marker ()
   (save-excursion
