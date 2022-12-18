@@ -117,15 +117,16 @@
 
 (add-hook! cdlatex-mode (setq cdlatex-use-dollar-to-ensure-math t))
 
-(add-hook 'c++-mode-hook
-          (lambda ()
-            (setq flycheck-clang-language-standard "c++17")
-            (setq flycheck-gcc-language-standard "c++17")))
+;; Removed in favor of adding to dir-locals.el; use that instead
+;; (add-hook 'c++-mode-hook
+;;           (lambda ()
+;;             (setq flycheck-clang-language-standard "c++20")
+;;             (setq flycheck-gcc-language-standard "c++20")))
 
-(add-hook 'c-mode-hook
-          (lambda ()
-            (setq flycheck-clang-language-standard "c17")
-            (setq flycheck-gcc-language-standard "c17")))
+;; (add-hook 'c-mode-hook
+;;           (lambda ()
+;;             (setq flycheck-clang-language-standard "c20")
+;;             (setq flycheck-gcc-language-standard "c20")))
 
 (add-hook 'rustic-mode-hook
           (lambda ()
@@ -229,3 +230,37 @@
     (:around (oldfun &rest rest) fix-mode-active)
   (when (bound-and-true-p TeX-fold-mode)
     (apply oldfun rest)))
+
+(defvar cdlatex-which-shortcut--most-recent nil)
+
+(defun cdlatex-which-shortcut (symbol)
+  (interactive
+   (list (read-string
+          (if cdlatex-which-shortcut--most-recent
+              (format "Symbol (default %s): "
+                      cdlatex-which-shortcut--most-recent)
+            "Symbol: "))))
+  (let* ((symb (if (string-empty-p symbol)
+                   cdlatex-which-shortcut--most-recent
+                 symbol))
+         (proper-symbol (if (= (aref symb 0) ?\\)
+                            symb
+                          (concat "\\" symb))))
+    (setf cdlatex-which-shortcut--most-recent proper-symbol)
+    (message (or (cl-some (lambda (val)
+                            (let ((index (seq-position (cdr val) proper-symbol)))
+                              (if index
+                                  (format "%c (level %d)" (car val) (1+ index))
+                                nil)))
+                          cdlatex-math-symbol-alist-comb)
+                 "No sequence found"))))
+
+(after! cdlatex
+  (setq! cdlatex-math-symbol-alist
+         '((82 . ("\\mathbb{R}" "\\Re"))
+           (67 . ("\\mathbb{C}" "" "\\arccos"))))
+  (cdlatex-compute-tables))
+
+(after! tex-mode
+  (add-to-list 'tex--prettify-symbols-alist
+               '("\\mathbb{C}" . ?ℂ)))
