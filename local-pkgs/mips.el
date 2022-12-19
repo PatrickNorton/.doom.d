@@ -53,6 +53,8 @@
          :type array)
    (registers :initarg :registers
               :type array)
+   (f-regs :initarg f-regs
+           :type array)
    (stack :initarg :stack
           :initform nil
           :type list)
@@ -79,6 +81,7 @@
 (defun mips-env-new (code start buffer labels)
   (mips-env :code code
             :registers (mips-init-registers)
+            :f-regs (make-vector 32 0)
             :stack-start mips-stack-high
             :heap (make-hash-table)
             :ip start
@@ -98,6 +101,34 @@
 (cl-defmethod set-reg ((obj mips-env) register value)
   (cl-assert (not (zerop register)))
   (aset (slot-value obj 'registers) register (mips-wrap-unsigned value)))
+
+(defun mips--float-reg-p (register)
+  (<= 32 register 63))
+
+(defun mips--double-reg-p (register)
+  (and (mips--float-reg-p register) (zerop (mod register 2))))
+
+(cl-defmethod get-float-reg ((obj mips-env) register)
+  (cl-assert (mips--float-reg-p register))
+  (mips--int-to-float (aref (slot-value obj 'f-regs) (- register 32))))
+
+(cl-defmethod get-double-reg ((obj mips-env) register)
+  (cl-assert (mips--double-reg-p register))
+  (mips--int-to-double
+   (logior (ash (aref (slot-value obj 'f-regs) (- register 31)) 32)
+           (aref (slot-value obj 'f-regs) (- register 31)))))
+
+(cl-defmethod set-float-reg ((obj mips-env) register value)
+  (cl-assert (mips--float-reg-p register))
+  (aset (slot-value obj 'f-regs) (- register 32) (mips--float-to-int value)))
+
+(cl-defmethod set-double-reg ((obj mips-env) register value)
+  (cl-assert (mips--double-reg-p register))
+  (let ((int-val (mips--double-to-int value)))
+    (aset (slot-value obj 'f-regs) (- register 32)
+          (logand int-val (1- (ash 1 32))))
+    (aset (slot-value obj 'f-regs) (- register 31)
+          (logand int-val (ash (1- (ash 1 32)) 32)))))
 
 (cl-defmethod reset-mips-state ((obj mips-env))
   (setf (slot-value obj 'registers) (mips-init-registers))
@@ -884,9 +915,9 @@ $ip    %35$s"
   `(if buffer-read-only
        (unwind-protect
            (progn
-             (setf buffer-read-only nil)
+             (setf inhibit-read-only t)
              ,@args)
-         (setf buffer-read-only t))
+         (setf inhibit-read-only nil))
      (progn ,@args)))
 
 (defun mips-write-output (env)
@@ -1162,3 +1193,158 @@ Output:
 (define-derived-mode mips-output-mode special-mode "MIPS output mode"
   :interactive nil
   :after-hook (mips--setup-output-vars))
+
+(defconst mips--float-mantissa-bits 23)
+(defconst mips--float-exponent-bits 8)
+(defconst mips--float-bits 32)
+(defconst mips--float-mantissa-mask
+  (1- (ash 1 mips--float-mantissa-bits)))
+(defconst mips--float-exponent-mask
+  (ash (1- (ash 1 mips--float-exponent-bits))
+       mips--float-mantissa-bits))
+(defconst mips--float-sign-mask (ash 1 (1- mips--float-bits)))
+(defconst mips--float-bias -127)
+
+(defconst mips--double-mantissa-bits 52)
+(defconst mips--double-exponent-bits 11)
+(defconst mips--double-bits 64)
+(defconst mips--double-mantissa-mask
+  (1- (ash 1 mips--double-mantissa-bits)))
+(defconst mips--double-exponent-mask
+  (ash (1- (ash 1 mips--double-exponent-bits))
+       mips--double-mantissa-bits))
+(defconst mips--double-sign-mask (ash 1 (1- mips--float-bits)))
+(defconst mips--double-bias -1023)
+
+(defun mips--givesign (f-sign val)
+  (if (zerop f-sign) val (- val)))
+
+(defun mips--int-to-float (val)
+  (mips--int-to-f val nil))
+
+(defun mips--int-to-double (val)
+  (mips--int-to-f val t))
+
+(defun mips--int-to-f (val doublep)
+  ;; Setting all of these lets us reuse the same code for floats and doubles:
+  ;; since this is quite complex, that helps a lot
+  (let ((bits (if doublep mips--double-bits mips--float-bits))
+        (sign-mask (if doublep mips--double-sign-mask mips--float-sign-mask))
+        (exponent-mask (if doublep
+                           mips--double-exponent-mask
+                         mips--float-exponent-mask))
+        (mantissa-mask (if doublep
+                           mips--double-mantissa-mask
+                         mips--float-mantissa-mask))
+        (exponent-bits (if doublep
+                           mips--double-exponent-bits
+                         mips--float-exponent-bits))
+        (mantissa-bits (if doublep
+                           mips--double-mantissa-bits
+                         mips--float-mantissa-bits))
+        (bias (if doublep mips--double-bias mips--float-bias)))
+    (cl-assert (<= 0 val (1- (ash 1 bits))))
+    (let ((sign (logand val sign-mask))
+          (exponent (ash (logand val exponent-mask) (- mantissa-bits)))
+          (mantissa (logand val mantissa-mask)))
+      (cond
+       ;; A zero exponent is either 0 or a subnormal
+       ((zerop exponent)
+        (if (zerop mantissa)
+            (mips--givesign 0.0)
+          ;; The exponent here is 1 + the bias (as is the standard exponent for
+          ;; subnormals) along with an additional shift for the mantissa bits,
+          ;; since ldexp "expects" a fractional number and we're giving it an
+          ;; integer
+          (mips--givesign
+           (ldexp (+ 1 bias (- mantissa-bits))
+                  mantissa))))
+       ;; A maxed-out exponent is either infinity or NaN, depending on the
+       ;; mantissa
+       ((= exponent (1- (ash 1 exponent-bits)))
+        (mips--givesign (if (zerop mantissa) 0.0e+INF 0.0e+NaN)))
+       ;; Normal floating point number
+       (t (mips--givesign
+           ;; The exponent here is 2^(exponent + bias - mantissa); this is because
+           ;; we add the bias b/c that's how floating-point exponents work and we
+           ;; subtract the bits of the mantissa because the mantissa of a floating
+           ;; point is a decimal, but we have an integer
+           (ldexp (+ exponent bias (- mantissa-bits))
+                  ;; This logand adds the implicit leading 1 that is all (normal)
+                  ;; floating-point numbers have
+                  (logior mantissa (ash 1 mantissa-bits)))))))))
+
+(defun mips--float-sign (val)
+  ;; Note that this is a little more complicated than you might expect: we can't
+  ;; just compare to 0 here because of NaN and -0.0, so we use copysign to move
+  ;; the sign onto a number that we can actually deal with and go from there
+  (if (>= (copysign val 1.0) 0) 0 1))
+
+(defun mips--give-int-sign (val sign bits)
+  (logior val (ash sign (1- bits))))
+
+(defun mips--float-to-int (val)
+  (mips--f-to-int val nil))
+
+(defun mips--double-to-int (val)
+  (mips--f-to-int val t))
+
+(defun mips--f-to-int (val doublep)
+  (let ((bits (if doublep mips--double-bits mips--float-bits))
+        (sign-mask (if doublep mips--double-sign-mask mips--float-sign-mask))
+        (exponent-mask (if doublep
+                           mips--double-exponent-mask
+                         mips--float-exponent-mask))
+        (mantissa-mask (if doublep
+                           mips--double-mantissa-mask
+                         mips--float-mantissa-mask))
+        (exponent-bits (if doublep
+                           mips--double-exponent-bits
+                         mips--float-exponent-bits))
+        (mantissa-bits (if doublep
+                           mips--double-mantissa-bits
+                         mips--float-mantissa-bits))
+        (bias (if doublep mips--double-bias mips--float-bias)))
+    (pcase-let* ((`(,s-mantissa . ,a-exponent) (frexp val))
+                 (sign (mips--float-sign))
+                 ;; This small little adjustment is because Emacs reports
+                 ;; mantissas as between 0.5 and 1, but real floats keep their
+                 ;; mantissas between 1 and 2 (including the implicit leading
+                 ;; 1), so we also adjust to compensate for that.
+                 (mantissa (* (abs s-mantissa) 2))
+                 (exponent (1- a-exponent)))
+      (cond
+       ;; If val is zero, we return 0: note that we must take care if val is
+       ;; -0.0!
+       ((zerop val) (mips--give-int-sign 0 sign bits))
+       ;; If the mantissa is NaN, then our float was NaN; this doesn't preserve
+       ;; signalling bits (yet), so we just give it a mantissa of 1.
+       ((isnan mantissa)
+        (mips--give-int-sign (logior exponent-mask 1)))
+       ;; With an infinity, we do the same as for NaN, but give it a zero
+       ;; mantissa. This happens both when our mantissa is infinity and when our
+       ;; exponent is greater than the bias (which can happen when converting a
+       ;; 64-bit float to a 32-bit representation)
+       ((or (= mantissa 1.0e+INF)
+            (> exponent (- bias)))
+        (mips--give-int-sign exponent-mask sign bits))
+       ;; If the exponent is less than or equal the bias, we must have a
+       ;; subnormal number (yay...).
+       ((<= exponent bias)
+        (let* ((exp-adjust (1+ (- bias exponent)))
+               (mantissa-adjust
+                (round (* mantissa (expt 2 (- mantissa-bits exp-adjust))))))
+          ;; This assert is to ensure the mantissa is in the right range: since
+          ;; this is a subnormal, we know that there is no implicit leading 1
+          ;; and this should be true.
+          (cl-assert (= mantissa-adjust (logand mantissa-mask mantissa-adjust)))
+          (mips--give-int-sign (logior (ash (1+ bias) mantissa-bits)
+                                       mantissa-adjust))))
+       (t (let ((proper-mantissa (round (* mantissa (expt 2 mantissa-bits)))))
+            ;; Nice way of ensuring our mantissa has that implicit leading 1.
+            ;; Since 1 <= proper-mantissa < 2, we know that the 1 is always
+            ;; there, but this helps check that we didn't overshoot
+            (cl-assert (= (/ proper-mantissa 2)
+                          (logand mantissa-mask (/ proper-mantissa 2))))
+            (mips--give-int-sign (logior (ash exponent (mantissa-bits))
+                                         (logand mantissa mantissa-mask)))))))))
