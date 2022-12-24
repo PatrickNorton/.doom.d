@@ -264,3 +264,9 @@
 (after! tex-mode
   (add-to-list 'tex--prettify-symbols-alist
                '("\\mathbb{C}" . ?ℂ)))
+
+(add-hook! 'haskell-literate-mode-hook
+           (visual-line-mode t))
+
+(after! haskell-mode
+  (setq! haskell-hoogle-command "hoogle"))
