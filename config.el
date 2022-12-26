@@ -138,7 +138,8 @@
 (defvar pre-reload-treemacs-visibility nil)
 
 (add-hook! 'doom-before-reload-hook
-  (setq pre-reload-treemacs-visibility (treemacs-current-visibility)))
+  (setq pre-reload-treemacs-visibility (and (fboundp 'treemacs-current-visibility)
+                                            (treemacs-current-visibility))))
 
 ;; Prevent reloads from making treemacs disappear
 (add-hook! 'doom-after-reload-hook
