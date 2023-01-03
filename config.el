@@ -6,7 +6,7 @@
 (setq user-full-name "Patrick Norton"
       user-mail-address "patrick.147.norton@gmail.com")
 
-(setq doom-font (font-spec :family "Fira Code" :size 12))
+(setq doom-font (font-spec :family "Fira Code" :size (if IS-MAC 12 24)))
 
 (load-theme 'atom-one-dark t)
 
