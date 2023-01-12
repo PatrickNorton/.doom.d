@@ -6,16 +6,13 @@
 (setq user-full-name "Patrick Norton"
       user-mail-address "patrick.147.norton@gmail.com")
 
-(setq doom-font (font-spec :family "Fira Code" :size (if IS-MAC 12 24)))
+(setq doom-font (font-spec :family "Fira Code Retina" :size (if IS-MAC 12 9.0)))
 
 (load-theme 'atom-one-dark t)
 
 (setq org-directory "~/org/")
 
 (setq display-line-numbers-type t)
-
-(when (memq window-system '(mac ns x))
-  (exec-path-from-shell-initialize))
 
 (load! "local-pkgs/nlang-mode")
 (load! "local-pkgs/cppman")
@@ -72,8 +69,8 @@
 
 (after! cdlatex
   (setq! cdlatex-math-symbol-alist
-         '((82 . ("\\mathbb{R}" "\\Re"))
-           (67 . ("\\mathbb{C}" "" "\\arccos"))))
+         '((?R . ("\\mathbb{R}" "\\Re"))
+           (?C . ("\\mathbb{C}" "" "\\arccos"))))
   (cdlatex-compute-tables))
 
 (defvar cdlatex-which-shortcut--most-recent nil)
@@ -155,3 +152,5 @@
 
 (when (< emacs-major-version 28)
   (after! git-gutter-fringe (set-fringe-mode nil)))
+
+(add-hook! 'elfeed-search-mode-hook #'elfeed-update)

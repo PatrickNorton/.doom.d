@@ -47,10 +47,10 @@ string. You generally only need these two:
 
 One issue with my current Linux machine is the fact that the font does not wend
 up the right size without some configuring. Due to that, the font size needs to
-be set to 24 instead.
+be set to 9.0 instead.
 
 #+begin_src elisp
-(setq doom-font (font-spec :family "Fira Code" :size (if IS-MAC 12 24)))
+(setq doom-font (font-spec :family "Fira Code Retina" :size (if IS-MAC 12 9.0)))
 #+end_src
 
 *** Themes
@@ -86,10 +86,11 @@ numbers are disabled. For relative line numbers, set this to =relative=.
 Emacs doesn't set the shell path in windowed systems by default, so we need to
 initialize it manually in windowed systems.
 
-TODO: When Emacs gets a native GTK mode, does that need to be added to
-=window-system=?
+NOTE: This has been replaced by an =env= file (see =doom help env=), as it makes
+startup much faster. Therefore, it is no longer tangled into the init file,
+although it is left in this file for future reference.
 
-#+begin_src elisp
+#+begin_src elisp :tangle no
 (when (memq window-system '(mac ns x))
   (exec-path-from-shell-initialize))
 #+end_src
@@ -227,8 +228,8 @@ This adds additional shortcuts to =cdlatex=.
 #+begin_src elisp
 (after! cdlatex
   (setq! cdlatex-math-symbol-alist
-         '((82 . ("\\mathbb{R}" "\\Re"))
-           (67 . ("\\mathbb{C}" "" "\\arccos"))))
+         '((?R . ("\\mathbb{R}" "\\Re"))
+           (?C . ("\\mathbb{C}" "" "\\arccos"))))
   (cdlatex-compute-tables))
 #+end_src
 
@@ -371,4 +372,13 @@ a patch for that.
 #+begin_src elisp
 (when (< emacs-major-version 28)
   (after! git-gutter-fringe (set-fringe-mode nil)))
+#+end_src
+
+*** Elfeed
+
+I want =elfeed= to auto-update every time I open it (otherwise I'll forget to
+refresh it).
+
+#+begin_src elisp
+(add-hook! 'elfeed-search-mode-hook #'elfeed-update)
 #+end_src
