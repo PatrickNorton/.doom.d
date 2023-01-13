@@ -352,7 +352,7 @@ Do this by removing the face property from the { ... } sections."
     (if (and buf-hash (= buf-hash current-hash))
         buf-vals
       (let ((defined (nlang-mode:calculate-defined)))
-        (puthash name (cons buf-hash defined))
+        (puthash name (cons buf-hash defined) nlang-mode:file-defined)
        defined))))
 
 (define-derived-mode nlang-mode prog-mode "Nlang"
