@@ -143,7 +143,7 @@
     (+treemacs/toggle)))
 
 (add-hook! 'haskell-literate-mode-hook
-           (visual-line-mode t))
+  (visual-line-mode t))
 
 (after! haskell-mode
   (setq! haskell-hoogle-command "hoogle"))

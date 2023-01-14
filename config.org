@@ -348,7 +348,7 @@ Literate Haskell gets visual line wraps.
 
 #+begin_src elisp
 (add-hook! 'haskell-literate-mode-hook
-           (visual-line-mode t))
+  (visual-line-mode t))
 #+end_src
 
 Hoogle (Haskell's search engine) uses needs an explicit command set.
