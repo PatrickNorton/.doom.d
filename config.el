@@ -154,3 +154,6 @@
   (after! git-gutter-fringe (set-fringe-mode nil)))
 
 (add-hook! 'elfeed-search-mode-hook #'elfeed-update)
+
+(after! vertico
+  (setq! vertico-sort-function #'vertico-sort-length-alpha))

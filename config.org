@@ -382,3 +382,13 @@ refresh it).
 #+begin_src elisp
 (add-hook! 'elfeed-search-mode-hook #'elfeed-update)
 #+end_src
+
+*** Vertico
+
+I don't like history in my sorting, so this changes Vertico to ignore that in
+sorting.
+
+#+begin_src elisp
+(after! vertico
+  (setq! vertico-sort-function #'vertico-sort-length-alpha))
+#+end_src
