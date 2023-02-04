@@ -186,7 +186,7 @@ Dafny and =prettify-symbols-mode= don't get along, so that gets turned off.
 =auto-fill-mode= is a mode that wraps paragraphs at 80 characters by default.
 
 #+begin_src elisp
-(add-hook! ('LaTeX-mode-hook 'markdown-mode-hook) #'auto-fill-mode)
+(add-hook! ('LaTeX-mode-hook 'markdown-mode-hook 'org-mode-hook) #'auto-fill-mode)
 #+end_src
 
 *** LaTeX
@@ -229,7 +229,8 @@ This adds additional shortcuts to =cdlatex=.
 (after! cdlatex
   (setq! cdlatex-math-symbol-alist
          '((?R . ("\\mathbb{R}" "\\Re"))
-           (?C . ("\\mathbb{C}" "" "\\arccos"))))
+           (?C . ("\\mathbb{C}" "" "\\arccos"))
+           (?Z . ("\\mathbb{Z}" "" ""))))
   (cdlatex-compute-tables))
 #+end_src
 
@@ -356,6 +357,16 @@ Hoogle (Haskell's search engine) uses needs an explicit command set.
 #+begin_src elisp
 (after! haskell-mode
   (setq! haskell-hoogle-command "hoogle"))
+#+end_src
+
+*** Python
+
+Python likes to be very strict about its 80-character line limit, so we add a
+line at 80 characters for that.
+
+#+begin_src elisp
+(add-hook! 'python-mode-hook
+  (display-fill-column-indicator-mode 80))
 #+end_src
 
 *** Git-gutter

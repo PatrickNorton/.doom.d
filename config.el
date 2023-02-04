@@ -51,7 +51,7 @@
 
 (add-hook! 'dafny-mode-hook (prettify-symbols-mode -1))
 
-(add-hook! ('LaTeX-mode-hook 'markdown-mode-hook) #'auto-fill-mode)
+(add-hook! ('LaTeX-mode-hook 'markdown-mode-hook 'org-mode-hook) #'auto-fill-mode)
 
 (add-hook! cdlatex-mode (setq cdlatex-use-dollar-to-ensure-math t))
 
@@ -70,7 +70,8 @@
 (after! cdlatex
   (setq! cdlatex-math-symbol-alist
          '((?R . ("\\mathbb{R}" "\\Re"))
-           (?C . ("\\mathbb{C}" "" "\\arccos"))))
+           (?C . ("\\mathbb{C}" "" "\\arccos"))
+           (?Z . ("\\mathbb{Z}" "" ""))))
   (cdlatex-compute-tables))
 
 (defvar cdlatex-which-shortcut--most-recent nil)
@@ -147,6 +148,9 @@
 
 (after! haskell-mode
   (setq! haskell-hoogle-command "hoogle"))
+
+(add-hook! 'python-mode-hook
+  (display-fill-column-indicator-mode 80))
 
 (after! git-gutter (setq git-gutter:update-interval 2))
 
