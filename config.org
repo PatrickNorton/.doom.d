@@ -49,8 +49,13 @@ One issue with my current Linux machine is the fact that the font does not wend
 up the right size without some configuring. Due to that, the font size needs to
 be set to 9.0 instead.
 
+Since I'm now using the Doom Unicode module, I need to also set
+=doom-unicode-font= to =doom-font= or otherwise it will default to some other
+font for everything.
+
 #+begin_src elisp
 (setq doom-font (font-spec :family "Fira Code Retina" :size (if IS-MAC 12 9.0)))
+(setq doom-unicode-font doom-font)
 #+end_src
 
 *** Themes

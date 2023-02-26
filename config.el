@@ -7,6 +7,7 @@
       user-mail-address "patrick.147.norton@gmail.com")
 
 (setq doom-font (font-spec :family "Fira Code Retina" :size (if IS-MAC 12 9.0)))
+(setq doom-unicode-font doom-font)
 
 (load-theme 'atom-one-dark t)
 
