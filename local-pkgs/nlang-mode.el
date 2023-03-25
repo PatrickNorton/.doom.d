@@ -1,3 +1,23 @@
+;;; nlang-mode.el --- A major mode for my new language
+
+;; Copyright (C) 2023 Patrick Norton
+
+
+;; Author: Patrick Norton
+;; Version: 0.1
+;; Package-Requires: ((emacs "27.1"))
+;; Keywords: languages, tools
+;; URL: https://github.com/PatrickNorton/.doom.d
+
+;;; Commentary:
+
+;; This package provides a major mode for editing files in my new language,
+;; which is as-of-yet unnamed. (In the future, this file will be changed to
+;; accomodate the language's naming.) It does not yet provide LSP support or
+;; similar, as those tools do not yet exist.
+
+;;; Code:
+
 (require 'cl-lib)
 
 (defconst nlang-font-lock-keywords
@@ -57,7 +77,7 @@
              (x-property-get-set-regexp (rx (group (or "get" "set")) (* blank) ?\{)))
 
         `(
-          nlang-mode:font-lock-f-strings
+          nlang-mode--font-lock-f-strings
           (,x-block-comment-regexp . font-lock-comment-face)
           (,x-comment-regexp . font-lock-comment-face)
           (,x-operators-regexp . font-lock-keyword-face)
@@ -92,26 +112,27 @@
 (dolist (chr '(?$ ?& ?* ?+ ?- ?< ?>))
   (modify-syntax-entry chr "." nlang-mode-syntax-table))
 
-(defconst nlang-mode:indent-depth 4)
+(defconst nlang-mode-indent-depth 4)
 
-(defun nlang-mode:indentation (point offset)
+(defun nlang-mode--indentation (point offset)
+  "Convert POINT and OFFSET into a full indentation."
   (cons point offset))
 
-(defun nlang-mode:indentation:point (indentation)
+(defun nlang-mode--indentation-point (indentation)
   "Return the point of INDENTATION."
   (car indentation))
 
-(defun nlang-mode:indentation:offset (indentation)
+(defun nlang-mode--indentation-offset (indentation)
   "Return the offset of INDENTATION."
   (cdr indentation))
 
-(defun nlang-mode:indent-line ()
+(defun nlang-mode--indent-line ()
   "Indent the current line."
-  (let* ((indentation (save-excursion (nlang-mode:calculate-indentation)))
+  (let* ((indentation (save-excursion (nlang-mode--calculate-indentation)))
          (indentation-column
           (save-excursion
-            (goto-char (nlang-mode:indentation:point indentation))
-            (+ (current-column) (nlang-mode:indentation:offset indentation))))
+            (goto-char (nlang-mode--indentation-point indentation))
+            (+ (current-column) (nlang-mode--indentation-offset indentation))))
          (current-indent
           (save-excursion (back-to-indentation) (current-column))))
     (if (<= (current-column) current-indent)
@@ -120,25 +141,26 @@
       ;; Keeps current relative position.
       (save-excursion (indent-line-to indentation-column)))))
 
-(defun nlang-mode:tab-indent ()
-  (let* ((indentation (save-excursion (nlang-mode:calculate-indentation)))
+(defun nlang-mode--tab-indent ()
+  "Indent when a `TAB' character is hit."
+  (let* ((indentation (save-excursion (nlang-mode--calculate-indentation)))
          (indentation-column
           (save-excursion
-            (goto-char (nlang-mode:indentation:point indentation))
-            (+ (current-column) (nlang-mode:indentation:offset indentation))))
+            (goto-char (nlang-mode--indentation-point indentation))
+            (+ (current-column) (nlang-mode--indentation-offset indentation))))
          (current-indent
           (save-excursion (back-to-indentation) (current-column))))
     (if (>= current-indent indentation-column)
         ;; Already indented, indent 1 tab further
-        (indent-line-to (+ indentation-column nlang-mode:indent-depth))
+        (indent-line-to (+ indentation-column nlang-mode-indent-depth))
       (if (<= (current-column) current-indent)
           ;; The cursor is on the left margin. Moving to the new indent.
           (indent-line-to indentation-column)
         ;; Keeps current relative position.
         (save-excursion (indent-line-to indentation-column))))))
 
-(defun nlang-mode:calculate-indentation ()
-  "Calculate indent for the current line"
+(defun nlang-mode--calculate-indentation ()
+  "Calculate indent for the current line."
   (back-to-indentation)
   (let ((parser-state (syntax-ppss)))
     (cond
@@ -148,19 +170,20 @@
       ;;
       ;; - The 4th element of `(syntax-ppss)' is nil on the comment starter.
       ;; - We have called `back-to-indentation`.
-      (nlang-mode:calculate-indent-of-multiline-comment))
+      (nlang-mode--calculate-indent-of-multiline-comment))
 
      ((eq (nth 3 parser-state) t)
-      (nlang-mode:calculate-indent-of-multiline-string))
+      (nlang-mode--calculate-indent-of-multiline-string))
 
      ((looking-at "#")
-      (nlang-mode:calculate-indent-of-single-line-comment))
+      (nlang-mode--calculate-indent-of-single-line-comment))
 
-     (t (nlang-mode:calculate-code-indent)))))
+     (t (nlang-mode--calculate-code-indent)))))
 
-(defun nlang-mode:calculate-indent-of-multiline-comment ()
+(defun nlang-mode--calculate-indent-of-multiline-comment ()
+  "Calculate the indentation for a multiline comment."
   (back-to-indentation)
-  (let ((comment-beginning-position (nth 8 syntax-ppss))
+  (let ((comment-beginning-position (nth 8 (syntax-ppss)))
         (starts-with-pipe (eq (char-after (+ (point) 1)) ?|)))
     (forward-line -1)
     (back-to-indentation)
@@ -175,7 +198,7 @@
       (when (and (looking-at "|*[^|\n]+") (not starts-with-pipe))
         (skip-chars-forward "|")
         (skip-syntax-forward " "))
-      (nlang-mode:indentation (point) 0))
+      (nlang-mode--indentation (point) 0))
 
      ;; The cursor was on the 3rd or following lines of the comment.
 
@@ -195,22 +218,22 @@
       ;; opening delimiter.
       (goto-char comment-beginning-position)
       (forward-char)
-      (nlang-mode:indentation (point) 0))
+      (nlang-mode--indentation (point) 0))
 
      ;; Otherwise, aligns with a non-empty preceding line.
 
      ((and (bolp) (eolp))
       ;; The previous line is empty, so seeks a non-empty-line.
-      (nlang-mode:calculate-indent-of-multiline-comment))
+      (nlang-mode--calculate-indent-of-multiline-comment))
 
      (t
       ;; The previous line is not empty, so aligns to this line.
-      (nlang-mode:indentation (point) 0)))))
+      (nlang-mode--indentation (point) 0)))))
 
-(defun nlang-mode:calculate-code-indent ()
+(defun nlang-mode--calculate-code-indent ()
   "Return the indentation of the current line outside multiline comments."
   (back-to-indentation)
-  (nlang-mode:indentation
+  (nlang-mode--indentation
    (point)
    (let ((net-braces (nth 0 (syntax-ppss)))
          (current-indent
@@ -243,33 +266,33 @@
                    (if (and end-brace-p (not line-ends-with-open)) 0 -1)
                  (if (and end-brace-p (not line-ends-with-open)) 1 0))))
          (- (+ last-indent
-               (* nlang-mode:indent-depth (- net-braces last-braces tab-delta)))
+               (* nlang-mode-indent-depth (- net-braces last-braces tab-delta)))
             current-indent))))))
 
-(defun nlang-mode:calculate-indent-of-multiline-string ()
+(defun nlang-mode--calculate-indent-of-multiline-string ()
   "Return the indentation of the current line inside a multiline string."
   (back-to-indentation)
-  (nlang-mode:indentation (point) 0))
+  (nlang-mode--indentation (point) 0))
 
-(defun nlang-mode:calculate-indent-of-single-line-comment ()
+(defun nlang-mode--calculate-indent-of-single-line-comment ()
   "Return the indentation of the current line inside a single-line comment."
   (cond
    ((save-excursion
       (forward-line 0)
       (bobp))
-    (nlang-mode:indentation (point-min) 0))
+    (nlang-mode--indentation (point-min) 0))
    ((save-excursion
       (forward-line -1)
       (skip-syntax-forward " ")
       (looking-at "#"))
     (forward-line -1)
     (skip-syntax-forward " ")
-    (nlang-mode:indentation (point) 0))
+    (nlang-mode--indentation (point) 0))
    (t
-    (nlang-mode:calculate-code-indent))))
+    (nlang-mode--calculate-code-indent))))
 
-(defun nlang-mode:f-string-p (ppss)
-  "Return non-null if PPSS is found inside an f-string"
+(defun nlang-mode--f-string-p (ppss)
+  "Return non-null if PPSS is found inside an f-string."
   (require 'cl-lib)
   (and (nth 3 ppss)
        (cl-loop for spos = (1- (nth 8 ppss)) then (1- spos)
@@ -277,11 +300,11 @@
                            (memq (char-syntax (char-after spos)) '(?w ?_)))
                 thereis (memq (char-after spos) '(?f ?F)))))
 
-(defun nlang-mode:brace-is-escaped ()
+(defun nlang-mode--brace-is-escaped ()
   "Check if the brace at the previous point is escaped or not."
   (save-excursion
     (backward-char 1)
-    (cl-assert (and (nlang-mode:f-string-p (syntax-ppss))
+    (cl-assert (and (nlang-mode--f-string-p (syntax-ppss))
                   (memq (char-after) '(?\{ ?\}))))
     (let ((bs-count 0))
       (while (char-equal (char-before) ?\\)
@@ -289,18 +312,18 @@
         (cl-incf bs-count))
       (not (zerop (mod bs-count 2))))))
 
-(defun nlang-mode:font-lock-f-strings (limit)
-  "Mark the area in between braces in f-strings as being code.
+(defun nlang-mode--font-lock-f-strings (limit)
+  "Mark the area between braces in f-strings as being code, stopping before LIMIT.
 Do this by removing the face property from the { ... } sections."
   (let ((ppss (syntax-ppss)))
     (while
         (progn
-          (while (and (not (nlang-mode:f-string-p ppss))
+          (while (and (not (nlang-mode--f-string-p ppss))
                       (re-search-forward
                        (rx (any ?f ?F) (* word) (any ?\' ?\")) limit 'move))
             (setq ppss (syntax-ppss)))
           (< (point) limit))
-      (cl-assert (nlang-mode:f-string-p ppss))
+      (cl-assert (nlang-mode--f-string-p ppss))
       (let ((send (save-excursion
                     (goto-char (nth 8 ppss))
                     (condition-case nil
@@ -309,7 +332,7 @@ Do this by removing the face property from the { ... } sections."
                                (min limit (1- (point))))
                       (scan-error limit)))))
         (while (search-forward "{" send t)
-          (unless (nlang-mode:brace-is-escaped)
+          (unless (nlang-mode--brace-is-escaped)
             (let ((beg (point))
                   (end (condition-case nil
                            (progn (up-list 1) (min send (point)))
@@ -323,10 +346,10 @@ Do this by removing the face property from the { ... } sections."
         (goto-char (min limit (1+ send)))
         (setq ppss (syntax-ppss))))))
 
-(defconst nlang-mode:file-defined (make-hash-table))
+(defconst nlang-mode--file-defined (make-hash-table))
 
-(defun nlang-mode:calculate-defined ()
-  "Calculate the list of names defined in the current buffer"
+(defun nlang-mode--calculate-defined ()
+  "Calculate the list of names defined in the current buffer."
   (save-excursion
     (goto-char (point-min))
     (cl-loop
@@ -341,28 +364,34 @@ Do this by removing the face property from the { ... } sections."
        (thing-at-point 'word))
      do (forward-line 1))))
 
-(defun nlang-mode:get-file-defined ()
-  "Get the list of names defined in the current buffer"
+(defun nlang-mode--get-file-defined ()
+  "Get the list of names defined in the current buffer."
   (let* ((name (buffer-name))
          (buffer (current-buffer))
-         (buf-val (gethash name nlang-mode:file-defined (cons nil nil)))
+         (buf-val (gethash name nlang-mode--file-defined (cons nil nil)))
          (buf-hash (car buf-val))
          (buf-vals (cdr buf-val))
          (current-hash (secure-hash 'md5 buffer)))
     (if (and buf-hash (= buf-hash current-hash))
         buf-vals
-      (let ((defined (nlang-mode:calculate-defined)))
-        (puthash name (cons buf-hash defined) nlang-mode:file-defined)
+      (let ((defined (nlang-mode--calculate-defined)))
+        (puthash name (cons buf-hash defined) nlang-mode--file-defined)
        defined))))
 
+;;;###autoload
 (define-derived-mode nlang-mode prog-mode "Nlang"
-  "Major mode for the N language"
+  "Major mode for the N language."
   (setq font-lock-defaults '((nlang-font-lock-keywords))))
 
 (add-hook
  'nlang-mode-hook
- (lambda () (setq indent-line-function 'nlang-mode:indent-line)))
+ (lambda () (setq indent-line-function 'nlang-mode--indent-line)))
 
 (add-hook 'nlang-mode-hook 'rainbow-delimiters-mode)
 
+;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.newlang\\'" . nlang-mode))
+
+(provide 'nlang-mode)
+
+;;; nlang-mode.el ends here

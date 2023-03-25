@@ -129,9 +129,25 @@ There are three files we currently load:
 - =mips.el= contains a (still in-progress) MIPS simulator
 
 #+begin_src elisp
-(load! "local-pkgs/nlang-mode")
-(load! "local-pkgs/cppman")
 (load! "local-pkgs/mips")
+#+end_src
+
+=nlang-mode.el= just graduated to being a proper package, so it now gets a
+=use-package!= declaration instead.
+
+#+begin_src elisp
+(add-load-path! "local-pkgs")
+(use-package! nlang-mode)
+(use-package! cppman)
+#+end_src
+
+** Modeline customization
+
+This adds an icon for the major-mode in the modeline.
+
+#+begin_src elisp
+(after! doom-modeline
+  (setq doom-modeline-major-mode-icon t))
 #+end_src
 
 ** MacOS helper functions

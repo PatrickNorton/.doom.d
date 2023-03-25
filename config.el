@@ -15,9 +15,11 @@
 
 (setq display-line-numbers-type t)
 
-(load! "local-pkgs/nlang-mode")
-(load! "local-pkgs/cppman")
 (load! "local-pkgs/mips")
+
+(add-load-path! "local-pkgs")
+(use-package! nlang-mode)
+(use-package! cppman)
 
 (defun delete-word ()
   (print "In delete-word")
