@@ -86,6 +86,16 @@ numbers are disabled. For relative line numbers, set this to =relative=.
 (setq display-line-numbers-type t)
 #+end_src
 
+*** Tramp
+
+This sets TRAMP's default executable path to start by checking the path of the
+remote shell.
+
+#+begin_src elisp
+(after! tramp
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+#+end_src
+
 *** Shell path
 
 Emacs doesn't set the shell path in windowed systems by default, so we need to
@@ -98,6 +108,14 @@ although it is left in this file for future reference.
 #+begin_src elisp :tangle no
 (when (memq window-system '(mac ns x))
   (exec-path-from-shell-initialize))
+#+end_src
+
+*** Trash
+
+I want Emacs to move files to the trash can instead of deleting them.
+
+#+begin_src elisp
+(setq delete-by-moving-to-trash t)
 #+end_src
 
 ** Additional information
@@ -147,7 +165,8 @@ This adds an icon for the major-mode in the modeline.
 
 #+begin_src elisp
 (after! doom-modeline
-  (setq doom-modeline-major-mode-icon t))
+  (setq doom-modeline-major-mode-icon t
+        doom-modeline-checker-simple-format nil))
 #+end_src
 
 ** MacOS helper functions
@@ -282,6 +301,22 @@ a given symbol. =cdlatex-which-shortcut= allows one to search for the shortcut.
                                 nil)))
                           cdlatex-math-symbol-alist-comb)
                  "No sequence found"))))
+#+end_src
+
+This is recently broken in =LaTeX-mode=: I think Doom prefers folding, but I
+don't; this sets things back to using =prettify-symbols= as I think it should.
+
+#+begin_src elisp
+(add-hook! 'LaTeX-mode-hook
+           (setq-local prettify-symbols-alist tex--prettify-symbols-alist)
+           (setq-local prettify-symbols-compose-predicate
+                         #'tex--prettify-symbols-compose-p))
+#+end_src
+
+This sets Emacs to use =pdf-tools= by default for viewing PDFs.
+
+#+begin_src elisp
+(setq +latex-viewers '(pdf-tools))
 #+end_src
 
 *** Rust
@@ -423,4 +458,23 @@ sorting.
 #+begin_src elisp
 (after! vertico
   (setq! vertico-sort-function #'vertico-sort-length-alpha))
+#+end_src
+
+*** Gnus
+
+I mostly use gnus for Emacs mailing-list discussion, so =gmane= is the best
+source for that.
+
+#+begin_src elisp
+(after! gnus
+  (setf gnus-select-method '(nntp "news.gmane.io")))
+#+end_src
+
+*** CSV
+
+The =csv-mode= package includes a =csv-align-mode=, which aligns all columns in
+a CSV or TSV file.
+
+#+begin_src elisp
+(add-hook! 'csv-mode-hook #'csv-align-mode)
 #+end_src

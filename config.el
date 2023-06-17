@@ -15,11 +15,20 @@
 
 (setq display-line-numbers-type t)
 
+(after! tramp
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+
+(setq delete-by-moving-to-trash t)
+
 (load! "local-pkgs/mips")
 
 (add-load-path! "local-pkgs")
 (use-package! nlang-mode)
 (use-package! cppman)
+
+(after! doom-modeline
+  (setq doom-modeline-major-mode-icon t
+        doom-modeline-checker-simple-format nil))
 
 (defun delete-word ()
   (print "In delete-word")
@@ -101,6 +110,13 @@
                           cdlatex-math-symbol-alist-comb)
                  "No sequence found"))))
 
+(add-hook! 'LaTeX-mode-hook
+           (setq-local prettify-symbols-alist tex--prettify-symbols-alist)
+           (setq-local prettify-symbols-compose-predicate
+                         #'tex--prettify-symbols-compose-p))
+
+(setq +latex-viewers '(pdf-tools))
+
 (add-hook 'rustic-mode-hook
           (lambda ()
             (setq indent-tabs-mode nil)
@@ -164,3 +180,8 @@
 
 (after! vertico
   (setq! vertico-sort-function #'vertico-sort-length-alpha))
+
+(after! gnus
+  (setf gnus-select-method '(nntp "news.gmane.io")))
+
+(add-hook! 'csv-mode-hook #'csv-align-mode)
