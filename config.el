@@ -132,14 +132,6 @@
                (mapcar #'string-trim-left
                        (ignore-errors (process-lines cargo "--list")))))))
 
-(after! lsp-mode
-  (setq lsp-rust-analyzer-cargo-watch-command "clippy")
-  (setq lsp-rust-clippy-preference "on")
-  (setq lsp-rust-analyzer-import-granularity "module")
-  (setq lsp-rust-analyzer-proc-macro-enable t)
-  (setq lsp-rust-analyzer-experimental-proc-attr-macros t)
-  (require 'dap-gdb-lldb))
-
 (after! dap-mode
   (setq dap-default-terminal-kind "integrated")
   (dap-register-debug-template "Rust::GDB Run Configuration"
