@@ -110,6 +110,24 @@ although it is left in this file for future reference.
   (exec-path-from-shell-initialize))
 #+end_src
 
+*** Smooth scrolling
+
+Emacs 29+ has support for smooth scrolling, which I want enabled.
+
+#+begin_src elisp
+(pixel-scroll-precision-mode t)
+#+end_src
+
+*** Paren context
+
+A new Emacs 29 feature is showing the matching parenthesis when your cursor is
+on a close-paren. There are several possibilities for this, but I like the
+overlay method best.
+
+#+begin_src elisp
+(setq show-paren-context-when-offscreen 'overlay)
+#+end_src
+
 *** Trash
 
 I want Emacs to move files to the trash can instead of deleting them.
@@ -147,16 +165,11 @@ There are three files we currently load:
 - =mips.el= contains a (still in-progress) MIPS simulator
 
 #+begin_src elisp
-(load! "local-pkgs/mips")
-#+end_src
-
-=nlang-mode.el= just graduated to being a proper package, so it now gets a
-=use-package!= declaration instead.
-
-#+begin_src elisp
 (add-load-path! "local-pkgs")
 (use-package! nlang-mode)
 (use-package! cppman)
+(use-package! mips)
+(use-package! objdump)
 #+end_src
 
 ** Modeline customization
@@ -209,6 +222,25 @@ Additionally, we set command-x to cut instead of =M-x=.
   (delete-region beg end))
 
 (map! "s-x" #'cut-region)
+#+end_src
+
+** Calendar integration
+
+Setting up =org-gcal= is a pain now.
+
+#+begin_src elisp
+(after! org-gcal
+  (setq org-gcal-fetch-file-alist
+        '(("1lspk4920guat9kig78mou932s@group.calendar.google.com"
+           "~/org/patrick-reed.org"))))
+#+end_src
+
+#+begin_src elisp
+(load! "calfw-secrets.el")
+(defun open-calendar ()
+  (interactive)
+  (cfw:open-calendar-buffer
+   :contents-sources private-cfw-sources))
 #+end_src
 
 ** Mode hooks
@@ -417,6 +449,16 @@ Hoogle (Haskell's search engine) uses needs an explicit command set.
   (setq! haskell-hoogle-command "hoogle"))
 #+end_src
 
+*** Common Lisp
+
+I have an offline copy of the [[http://www.lispworks.com/reference/HyperSpec/][CLHS]]; this allows me to use the offline copy in
+lookups instead of going to the online version.
+
+#+begin_src elisp
+(after! sly
+  (setq common-lisp-hyperspec-root "file:///usr/local/share/doc/HyperSpec/"))
+#+end_src
+
 *** Python
 
 Python likes to be very strict about its 80-character line limit, so we add a
@@ -479,4 +521,12 @@ a CSV or TSV file.
 
 #+begin_src elisp
 (add-hook! 'csv-mode-hook #'csv-align-mode)
+#+end_src
+
+*** Lua
+
+Files with the =.tlu= extension appear to be TeX Lua, which uses =lua-mode=.
+
+#+begin_src elisp
+(add-to-list 'auto-mode-alist '("\\.tlu\\'" . lua-mode))
 #+end_src

@@ -18,9 +18,11 @@
 (after! tramp
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
 
-(setq delete-by-moving-to-trash t)
+(pixel-scroll-precision-mode t)
 
-(load! "local-pkgs/mips")
+(setq show-paren-context-when-offscreen 'overlay)
+
+(setq delete-by-moving-to-trash t)
 
 (add-load-path! "local-pkgs")
 (use-package! nlang-mode)
