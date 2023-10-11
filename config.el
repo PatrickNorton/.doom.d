@@ -13,10 +13,15 @@
 
 (setq org-directory "~/org/")
 
+(setq org-roam-database-connector 'sqlite)
+
 (setq display-line-numbers-type t)
 
 (after! tramp
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+
+(setq-default eglot-workspace-configuration
+              '(:rust-analyzer (:checkOnSave (:command "clippy"))))
 
 (pixel-scroll-precision-mode t)
 
@@ -27,6 +32,8 @@
 (add-load-path! "local-pkgs")
 (use-package! nlang-mode)
 (use-package! cppman)
+(use-package! mips)
+(use-package! objdump)
 
 (after! doom-modeline
   (setq doom-modeline-major-mode-icon t
@@ -63,6 +70,17 @@
 
 (map! "s-x" #'cut-region)
 
+(after! org-gcal
+  (setq org-gcal-fetch-file-alist
+        '(("1lspk4920guat9kig78mou932s@group.calendar.google.com"
+           "~/org/patrick-reed.org"))))
+
+(load! "calfw-secrets.el")
+(defun open-calendar ()
+  (interactive)
+  (cfw:open-calendar-buffer
+   :contents-sources private-cfw-sources))
+
 (add-hook! 'dafny-mode-hook (prettify-symbols-mode -1))
 
 (add-hook! ('LaTeX-mode-hook 'markdown-mode-hook 'org-mode-hook) #'auto-fill-mode)
@@ -71,6 +89,7 @@
 
 (add-hook! 'LaTeX-mode-hook #'hl-todo-mode)
 (add-hook! 'LaTeX-mode-hook #'prettify-symbols-mode)
+(add-hook! 'LaTeX-mode-hook (apheleia-mode -1))
 
 (define-advice +latex-fold-last-macro-a
     (:around (oldfun &rest rest) fix-mode-active)
@@ -92,6 +111,7 @@
 
 (defun cdlatex-which-shortcut (symbol)
   (interactive
+   ;; TODO: completing-read?
    (list (read-string
           (if cdlatex-which-shortcut--most-recent
               (format "Symbol (default %s): "
@@ -162,6 +182,9 @@
 (after! haskell-mode
   (setq! haskell-hoogle-command "hoogle"))
 
+(after! sly
+  (setq common-lisp-hyperspec-root "file:///usr/local/share/doc/HyperSpec/"))
+
 (add-hook! 'python-mode-hook
   (display-fill-column-indicator-mode 80))
 
@@ -179,3 +202,7 @@
   (setf gnus-select-method '(nntp "news.gmane.io")))
 
 (add-hook! 'csv-mode-hook #'csv-align-mode)
+
+(add-to-list 'auto-mode-alist '("\\.tlu\\'" . lua-mode))
+
+(add-to-list 'auto-mode-alist '("\\.ml\\'" . tuareg-mode))
